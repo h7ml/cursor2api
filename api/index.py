@@ -235,6 +235,12 @@ class handler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(get_html_content().encode())
             
+        elif path == '/favicon.ico':
+            # 返回空的 favicon 响应，避免 404 错误
+            self.send_response(204)  # No Content
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            
         elif path == '/v1/models':
             # 检查授权
             auth = self.headers.get('Authorization', '')
