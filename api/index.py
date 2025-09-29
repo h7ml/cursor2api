@@ -133,45 +133,147 @@ helloWorld();
     return f"我理解您的需求：'{user_message}'。请提供更多细节，以便我能够更准确地帮助您。"
 
 def get_html_content():
-    """获取HTML页面"""
-    return """
+    """获取HTML内容"""
+    models_badges = ''.join([f'<div class="model-badge">{model}</div>' for model in MODELS])
+    
+    return f"""
     <!DOCTYPE html>
     <html>
     <head>
-        <title>AI API Service</title>
+        <title>Advanced AI Models API</title>
         <meta charset="UTF-8">
         <style>
-            body { font-family: Arial, sans-serif; margin: 40px; background: linear-gradient(135deg, #667eea, #764ba2); }
-            .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; }
-            h1 { color: #333; }
-            code { background: #f4f4f4; padding: 2px 6px; border-radius: 3px; }
-            pre { background: #2d3436; color: #dfe6e9; padding: 15px; border-radius: 5px; overflow-x: auto; }
-            .status { color: green; font-weight: bold; }
+            * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+            body {{
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                min-height: 100vh;
+                padding: 20px;
+            }}
+            .container {{
+                max-width: 1200px;
+                margin: 0 auto;
+                background: white;
+                border-radius: 20px;
+                padding: 40px;
+                box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            }}
+            h1 {{
+                color: #333;
+                border-bottom: 3px solid #667eea;
+                padding-bottom: 15px;
+                margin-bottom: 30px;
+            }}
+            .info {{
+                background: #f8f9fa;
+                padding: 20px;
+                border-radius: 10px;
+                margin: 20px 0;
+                border-left: 4px solid #667eea;
+            }}
+            .models-grid {{
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                gap: 10px;
+                margin: 20px 0;
+            }}
+            .model-badge {{
+                background: linear-gradient(135deg, #667eea, #764ba2);
+                color: white;
+                padding: 8px 12px;
+                border-radius: 8px;
+                font-size: 0.9em;
+                text-align: center;
+                font-weight: 500;
+            }}
+            code {{
+                background: #e9ecef;
+                padding: 3px 8px;
+                border-radius: 4px;
+                font-family: 'Courier New', monospace;
+            }}
+            .status {{
+                display: inline-block;
+                padding: 5px 12px;
+                background: #28a745;
+                color: white;
+                border-radius: 20px;
+                font-weight: bold;
+                animation: pulse 2s infinite;
+            }}
+            @keyframes pulse {{
+                0%, 100% {{ opacity: 1; }}
+                50% {{ opacity: 0.8; }}
+            }}
+            pre {{
+                background: #2d3436;
+                color: #dfe6e9;
+                padding: 15px;
+                border-radius: 8px;
+                overflow-x: auto;
+                margin: 10px 0;
+            }}
+            .endpoint {{
+                background: #fff;
+                border: 2px solid #e9ecef;
+                padding: 20px;
+                border-radius: 10px;
+                margin: 15px 0;
+            }}
+            .endpoint h3 {{
+                color: #495057;
+                margin-bottom: 10px;
+            }}
         </style>
     </head>
     <body>
         <div class="container">
-            <h1>🤖 AI API Service</h1>
-            <p>状态: <span class="status">✅ 运行中</span></p>
-            <p>版本: v1.0 - 智能响应版</p>
+            <h1>🚀 Advanced AI Models API</h1>
             
-            <h2>API 调用示例</h2>
-            <pre>curl -X POST "https://api.autoschool.eu.org/v1/chat/completions" \
-  -H "Authorization: Bearer YOUR_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model": "claude-4.1-opus",
-    "messages": [{"role": "user", "content": "99+2=?"}],
+            <div class="info">
+                <p><strong>状态:</strong> <span class="status">运行中</span></p>
+                <p><strong>版本:</strong> Production v3.0 - 支持{len(MODELS)}个最新AI模型</p>
+                <p><strong>API密钥:</strong> <code>{'已配置 (环境变量)' if API_KEY != 'sk-default-key-please-change' else '未配置 - 请设置环境变量'}</code></p>
+                <p><strong>基础URL:</strong> <code>https://api.autoschool.eu.org</code></p>
+            </div>
+            
+            <div class="info">
+                <h2>🤖 支持的模型 (共{len(MODELS)}个)</h2>
+                <div class="models-grid">
+                    {models_badges}
+                </div>
+            </div>
+            
+            <div class="endpoint">
+                <h3>📋 获取模型列表</h3>
+                <code>GET /v1/models</code>
+                <pre>curl -X GET "https://api.autoschool.eu.org/v1/models" \\
+  -H "Authorization: Bearer YOUR_API_KEY"</pre>
+            </div>
+            
+            <div class="endpoint">
+                <h3>💬 聊天完成</h3>
+                <code>POST /v1/chat/completions</code>
+                <pre>curl -X POST "https://api.autoschool.eu.org/v1/chat/completions" \\
+  -H "Authorization: Bearer YOUR_API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{{
+    "model": "gpt-5",
+    "messages": [{{"role": "user", "content": "Hello"}}],
     "stream": false
-  }'</pre>
+  }}'</pre>
+            </div>
             
-            <h2>特性</h2>
-            <ul>
-                <li>✅ 智能数学计算</li>
-                <li>✅ 上下文理解</li>
-                <li>✅ 多语言支持</li>
-                <li>✅ OpenAI API 兼容</li>
-            </ul>
+            <div class="info">
+                <h3>✨ 特性</h3>
+                <ul>
+                    <li>完全兼容 OpenAI API 格式</li>
+                    <li>支持流式和非流式响应</li>
+                    <li>支持{len(MODELS)}个最新的AI模型</li>
+                    <li>智能响应生成</li>
+                    <li>CORS支持，可跨域调用</li>
+                </ul>
+            </div>
         </div>
     </body>
     </html>
