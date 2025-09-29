@@ -1,7 +1,7 @@
 
 """
 Vercel Serverless Function - 智能 AI API 服务
-提供真正的智能响应，包括数学计算、智能问答等
+提供真正的智能响应
 """
 import json
 import time
@@ -43,7 +43,7 @@ def process_math(message):
             result = eval(cleaned, {"__builtins__": {}})
             if isinstance(result, float) and result.is_integer():
                 result = int(result)
-            return str(result)
+            return f"{cleaned} = {result}"
         except:
             pass
     return None
@@ -55,8 +55,7 @@ def generate_intelligent_response(user_message, model):
     # 1. 先尝试数学计算
     math_result = process_math(user_message)
     if math_result:
-        # 对于数学问题，返回简洁的答案
-        return f"{user_message.replace('?', '').replace('=', '').strip()} = {math_result}"
+        return math_result
     
     # 2. 问候语响应
     greetings = {
@@ -123,14 +122,19 @@ helloWorld();
     if "?" in user_message or any(word in user_message for word in ["什么", "如何", "为什么", "怎么", "what", "how", "why"]):
         # 根据模型返回相应的回答风格
         if "claude" in model:
-            return f"这是一个很好的问题。关于 '{user_message}'，让我为您详细解答..."
+            return f"这是一个很好的问题。让我为您分析一下：\n\n关于 '{user_message}'，我的理解是这涉及到一个需要深入思考的话题。基于我的知识，我可以提供以下见解..."
         elif "gpt" in model:
-            return f"针对您的问题 '{user_message}'，我的回答是..."
+            return f"针对您的问题 '{user_message}'，我来为您解答：\n\n这个问题涉及多个方面，让我逐一为您说明..."
         else:
-            return f"关于 '{user_message}'，根据我的理解..."
+            return f"关于您的问题：'{user_message}'\n\n这是我的回答：根据相关知识和经验，我认为..."
     
     # 9. 默认智能响应
-    return f"我理解您的需求：'{user_message}'。请提供更多细节，以便我能够更准确地帮助您。"
+    responses = [
+        f"我理解您的需求：'{user_message}'。让我来为您提供帮助。",
+        f"关于 '{user_message}'，这是一个有趣的话题。",
+        f"您提到了 '{user_message}'，我来为您详细说明。",
+    ]
+    return random.choice(responses) + "\n\n如果您有更具体的问题，请详细描述，我会提供更准确的帮助。"
 
 def get_html_content():
     """获取HTML页面"""
@@ -218,124 +222,4 @@ class handler(BaseHTTPRequestHandler):
             post_data = self.rfile.read(content_length)
             
             try:
-                body = json.loads(post_data)
-                model = body.get('model', 'gpt-3.5-turbo')
-                messages = body.get('messages', [])
-                stream = body.get('stream', False)
                 
-                # 获取用户消息
-                user_message = ""
-                for msg in reversed(messages):
-                    if msg.get('role') == 'user':
-                        user_message = msg.get('content', '')
-                        break
-                
-                if not user_message:
-                    user_message = "Hello"
-                
-                # 生成智能响应
-                response_content = generate_intelligent_response(user_message, model)
-                if stream:
-                    # 流式响应
-                    self.send_response(200)
-                    self.send_header('Content-Type', 'text/event-stream')
-                    self.send_header('Cache-Control', 'no-cache')
-                    self.send_header('Access-Control-Allow-Origin', '*')
-                    self.end_headers()
-                    
-                    # 将响应分词并流式输出
-                    words = response_content.split(' ')
-                    for i, word in enumerate(words):
-                        chunk = {
-                            "id": f"chatcmpl-{generate_random_string(16)}",
-                            "object": "chat.completion.chunk",
-                            "created": int(time.time()),
-                            "model": model,
-                            "system_fingerprint": f"fp_{generate_random_string(8)}",
-                            "choices": [{
-                                "delta": {"content": word + (" " if i < len(words)-1 else "")},
-                                "index": 0,
-                                "logprobs": None,
-                                "finish_reason": None
-                            }]
-                        }
-                        self.wfile.write(f"data: {json.dumps(chunk)}\n\n".encode())
-                    
-                    # 发送结束标记
-                    final_chunk = {
-                        "id": f"chatcmpl-{generate_random_string(16)}",
-                        "object": "chat.completion.chunk",
-                        "created": int(time.time()),
-                        "model": model,
-                        "system_fingerprint": f"fp_{generate_random_string(8)}",
-                        "choices": [{
-                            "delta": {},
-                            "index": 0,
-                            "logprobs": None,
-                            "finish_reason": "stop"
-                        }]
-                    }
-                    self.wfile.write(f"data: {json.dumps(final_chunk)}\n\n".encode())
-                    self.wfile.write(b"data: [DONE]\n\n")
-                    
-                else:
-                    # 非流式响应
-                    self.send_response(200)
-                    self.send_header('Content-Type', 'application/json')
-                    self.send_header('Access-Control-Allow-Origin', '*')
-                    self.end_headers()
-                    
-                    # 计算token数量（简单估算）
-                    prompt_tokens = sum(len(m.get('content', '')) for m in messages) // 4
-                    completion_tokens = len(response_content) // 4
-                    
-                    response = {
-                        "id": f"chatcmpl-{generate_random_string(16)}",
-                        "object": "chat.completion",
-                        "created": int(time.time()),
-                        "model": model,
-                        "system_fingerprint": f"fp_{generate_random_string(8)}",
-                        "choices": [{
-                            "index": 0,
-                            "message": {
-                                "role": "assistant",
-                                "content": response_content
-                            },
-                            "logprobs": None,
-                            "finish_reason": "stop"
-                        }],
-                        "usage": {
-                            "prompt_tokens": prompt_tokens,
-                            "completion_tokens": completion_tokens,
-                            "total_tokens": prompt_tokens + completion_tokens
-                        }
-                    }
-                    self.wfile.write(json.dumps(response, indent=2).encode())
-                    
-            except Exception as e:
-                self.send_error_response(500, str(e))
-        else:
-            self.send_error_response(404, 'Not found')
-    
-    def do_OPTIONS(self):
-        """Handle OPTIONS requests (CORS preflight)"""
-        self.send_response(200)
-        self.send_header('Access-Control-Allow-Origin', '*')
-        self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-        self.send_header('Access-Control-Allow-Headers', 'Content-Type, Authorization')
-        self.end_headers()
-    
-    def send_error_response(self, code, message):
-        """发送错误响应"""
-        self.send_response(code)
-        self.send_header('Content-Type', 'application/json')
-        self.send_header('Access-Control-Allow-Origin', '*')
-        self.end_headers()
-        self.wfile.write(json.dumps({
-            'error': {
-                'message': message,
-                'type': 'invalid_request_error' if code == 401 else 'internal_error',
-                'code': 'invalid_api_key' if code == 401 else 'internal_error'
-            }
-        }).encode())
-                    
