@@ -44,8 +44,11 @@ def generate_random_string(length):
 
 def process_math(message):
     """处理数学计算"""
-    # 清理输入
+    # 清理输入 - 移除常见的问题词汇
     cleaned = message.replace('?', '').replace('=', '').replace('？', '').strip()
+    cleaned = cleaned.replace('等于多少', '').replace('等于', '').replace('是多少', '')
+    cleaned = cleaned.replace('equals', '').replace('what is', '').replace('calculate', '')
+    cleaned = cleaned.strip()
     
     # 检查是否为数学表达式
     if re.match(r'^[\d\s\+\-\*\/\(\)\.]+$', cleaned):
@@ -89,17 +92,41 @@ def generate_intelligent_response(user_message, model, conversation_history=None
             last_exchange = conversation_history[-1] if conversation_history else None
             if last_exchange:
                 # 基于之前的对话生成响应
-                context = f"基于之前的对话：{last_exchange.get('user', '')}"
-                if "数学" in str(last_exchange) or any(c in str(last_exchange) for c in "0123456789+-*/"):
-                    return f"关于之前的计算，{user_message}。让我继续为您解答..."
-                else:
-                    return f"关于您之前提到的内容，{user_message}。让我为您进一步说明..."
+                prev_user = last_exchange.get('user', '')
+                prev_response = last_exchange.get('assistant', '')
+                
+                # 检查是否在引用之前的数学计算
+                if any(word in msg_lower for word in ["结果", "答案", "这个数", "那个数"]):
+                    # 尝试从之前的响应中提取数字
+                    import re
+                    numbers = re.findall(r'\d+', prev_response)
+                    if numbers and any(word in msg_lower for word in ["乘", "加", "减", "除", "*", "+", "-", "/"]):
+                        # 构建新的数学表达式
+                        if "乘以" in user_message or "*" in user_message:
+                            factor = re.findall(r'\d+', user_message)
+                            if factor and numbers:
+                                new_calc = f"{numbers[-1]} * {factor[0]}"
+                                result = eval(new_calc, {"__builtins__": {}})
+                                return f"基于之前的结果 {numbers[-1]}，{new_calc} = {result}"
+                        elif "加上" in user_message or "+" in user_message:
+                            addend = re.findall(r'\d+', user_message)
+                            if addend and numbers:
+                                new_calc = f"{numbers[-1]} + {addend[0]}"
+                                result = eval(new_calc, {"__builtins__": {}})
+                                return f"基于之前的结果 {numbers[-1]}，{new_calc} = {result}"
+                
+                return f"关于您之前提到的内容，{user_message}。让我为您进一步说明..."
     
     # 1. 先尝试数学计算
     math_result = process_math(user_message)
     if math_result:
         # 对于数学问题，返回简洁的答案
-        return f"{user_message.replace('?', '').replace('=', '').strip()} = {math_result}"
+        # 提取原始的数学表达式部分
+        math_expr = user_message.replace('?', '').replace('=', '').replace('？', '')
+        math_expr = math_expr.replace('等于多少', '').replace('等于', '').replace('是多少', '')
+        math_expr = math_expr.replace('equals', '').replace('what is', '').replace('calculate', '')
+        math_expr = math_expr.strip()
+        return f"{math_expr} = {math_result}"
     
     # 2. 问候语响应
     greetings = {
