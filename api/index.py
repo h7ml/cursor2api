@@ -167,7 +167,7 @@ def get_html_content():
     </head>
     <body>
         <div class="container">
-            <h1>🚀 Advanced AI Models API - Production</h1>
+            <h1>🚀 Advanced AI Models API</h1>
             
             <div class="info">
                 <p><strong>状态:</strong> <span class="status">运行中</span></p>
