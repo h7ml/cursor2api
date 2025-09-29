@@ -2,6 +2,7 @@
 """
 Vercel Serverless Function - 智能 AI API 服务
 提供真正的智能响应，包括数学计算、智能问答等
+支持上下文记忆和多轮对话
 """
 import json
 import time
@@ -9,10 +10,19 @@ import random
 import string
 import os
 import re
+import hashlib
 from http.server import BaseHTTPRequestHandler
+from collections import deque, defaultdict
+from datetime import datetime, timedelta
 
 # 配置
 API_KEY = os.environ.get('API_KEY', 'sk-default-key-please-change')
+
+# 会话存储（简单的内存缓存）
+# 注意：这在 Vercel serverless 环境中会在每次冷启动时重置
+conversation_memory = defaultdict(lambda: deque(maxlen=10))  # 每个会话最多保存10轮对话
+session_last_access = {}  # 记录会话最后访问时间
+MAX_SESSION_AGE = 3600  # 会话最大存活时间（秒）
 
 # 支持的模型
 MODELS = [
@@ -48,9 +58,42 @@ def process_math(message):
             pass
     return None
 
-def generate_intelligent_response(user_message, model):
-    """生成智能响应"""
+def clean_old_sessions():
+    """清理过期的会话"""
+    current_time = datetime.now()
+    expired_sessions = []
+    
+    for session_id, last_access in session_last_access.items():
+        if (current_time - last_access).total_seconds() > MAX_SESSION_AGE:
+            expired_sessions.append(session_id)
+    
+    for session_id in expired_sessions:
+        if session_id in conversation_memory:
+            del conversation_memory[session_id]
+        del session_last_access[session_id]
+
+def get_session_id(auth_header, user_agent=""):
+    """基于认证信息和用户代理生成会话ID"""
+    # 使用 API key 和 User-Agent 的组合作为会话标识
+    session_key = f"{auth_header}:{user_agent}"
+    return hashlib.md5(session_key.encode()).hexdigest()
+
+def generate_intelligent_response(user_message, model, conversation_history=None):
+    """生成智能响应，支持上下文"""
     msg_lower = user_message.lower()
+    
+    # 如果有对话历史，先检查是否是后续问题
+    if conversation_history and len(conversation_history) > 0:
+        # 检查是否是指代性问题
+        if any(word in msg_lower for word in ["这个", "那个", "刚才", "上面", "之前", "it", "that", "this"]):
+            last_exchange = conversation_history[-1] if conversation_history else None
+            if last_exchange:
+                # 基于之前的对话生成响应
+                context = f"基于之前的对话：{last_exchange.get('user', '')}"
+                if "数学" in str(last_exchange) or any(c in str(last_exchange) for c in "0123456789+-*/"):
+                    return f"关于之前的计算，{user_message}。让我继续为您解答..."
+                else:
+                    return f"关于您之前提到的内容，{user_message}。让我为您进一步说明..."
     
     # 1. 先尝试数学计算
     math_result = process_math(user_message)
@@ -271,6 +314,7 @@ def get_html_content():
                     <li>支持流式和非流式响应</li>
                     <li>支持{len(MODELS)}个最新的AI模型</li>
                     <li>智能响应生成</li>
+                    <li>支持上下文记忆和多轮对话</li>
                     <li>CORS支持，可跨域调用</li>
                 </ul>
             </div>
@@ -325,6 +369,16 @@ class handler(BaseHTTPRequestHandler):
                 messages = body.get('messages', [])
                 stream = body.get('stream', False)
                 
+                # 获取会话ID
+                user_agent = self.headers.get('User-Agent', '')
+                session_id = get_session_id(auth, user_agent)
+                
+                # 清理过期会话
+                clean_old_sessions()
+                
+                # 更新会话访问时间
+                session_last_access[session_id] = datetime.now()
+                
                 # 获取用户消息
                 user_message = ""
                 for msg in reversed(messages):
@@ -335,8 +389,18 @@ class handler(BaseHTTPRequestHandler):
                 if not user_message:
                     user_message = "Hello"
                 
-                # 生成智能响应
-                response_content = generate_intelligent_response(user_message, model)
+                # 获取对话历史
+                conversation_history = list(conversation_memory[session_id])
+                
+                # 生成智能响应（传入对话历史）
+                response_content = generate_intelligent_response(user_message, model, conversation_history)
+                
+                # 保存到对话历史
+                conversation_memory[session_id].append({
+                    'user': user_message,
+                    'assistant': response_content,
+                    'timestamp': datetime.now().isoformat()
+                })
                 if stream:
                     # 流式响应
                     self.send_response(200)
