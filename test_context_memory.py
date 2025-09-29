@@ -10,7 +10,7 @@ import time
 
 # API 配置
 API_URL = "http://localhost:8000/v1/chat/completions"
-API_KEY = "sk-2ddt39UQQSk2dyW1RYuo3Kqu55bHuxydBewQF06QrGllfVOzby"
+API_KEY = "sk-yoursk"
 
 def test_conversation():
     """测试多轮对话"""
