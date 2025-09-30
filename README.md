@@ -1,20 +1,20 @@
 # Cursor2API - Advanced AI Models API
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-3.0-blue.svg" alt="Version">
-  <img src="https://img.shields.io/badge/models-23-green.svg" alt="Models">
+  <img src="https://img.shields.io/badge/version-3.1-blue.svg" alt="Version">
+  <img src="https://img.shields.io/badge/models-24-green.svg" alt="Models">
   <img src="https://img.shields.io/badge/license-MIT-orange.svg" alt="License">
   <img src="https://img.shields.io/badge/status-production-success.svg" alt="Status">
 </p>
 
 <p align="center">
   <b>🚀 一个部署在 Vercel 上的高级 AI 模型 API 服务</b><br>
-  支持 23 个最新的 AI 模型，完全兼容 OpenAI API 格式
+  支持 24 个最新的 AI 模型，完全兼容 OpenAI API 格式
 </p>
 
 ## ✨ 特性
 
-- 🤖 **支持 23 个最新 AI 模型** - GPT-5、Claude 4、Gemini 2.5、DeepSeek、Grok 等
+- 🤖 **支持 24 个最新 AI 模型** - GPT-5、Claude 4.5 Sonnet、Gemini 2.5、DeepSeek、Grok 等
 - 🔄 **完全兼容 OpenAI API** - 无缝对接现有应用
 - 🌊 **流式/非流式响应** - 支持实时流式输出
 - 🔒 **安全认证** - 基于环境变量的 API 密钥管理
@@ -55,7 +55,7 @@ API_KEY=your-secure-api-key-here
 ## 📦 支持的模型
 
 <details>
-<summary>查看全部 23 个模型</summary>
+<summary>查看全部 24 个模型</summary>
 
 ### GPT 系列
 - `gpt-5` - 最先进的GPT模型
@@ -72,6 +72,7 @@ API_KEY=your-secure-api-key-here
 - `claude-4-sonnet` - 下一代Claude 4
 - `claude-4-opus` - Claude 4旗舰版
 - `claude-4.1-opus` - Claude 4.1增强版
+- `claude-4.5-sonnet` - 🆕 Claude 4.5 Sonnet 最新版
 
 ### Gemini 系列
 - `gemini-2.5-pro` - Google Gemini 2.5专业版

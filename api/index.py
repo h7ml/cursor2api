@@ -29,7 +29,7 @@ MODELS = [
     "gpt-5", "gpt-5-codex", "gpt-5-mini", "gpt-5-nano",
     "gpt-4.1", "gpt-4o", "gpt-4", "gpt-3.5-turbo",
     "claude-3.5-sonnet", "claude-3.5-haiku", "claude-3.7-sonnet",
-    "claude-4-sonnet", "claude-4-opus", "claude-4.1-opus",
+    "claude-4-sonnet", "claude-4-opus", "claude-4.1-opus", "claude-4.5-sonnet",
     "gemini-2.5-pro", "gemini-2.5-flash",
     "o3", "o4-mini",
     "deepseek-r1", "deepseek-v3.1",
@@ -75,47 +75,122 @@ def clean_old_sessions():
             del conversation_memory[session_id]
         del session_last_access[session_id]
 
-def get_session_id(auth_header, user_agent=""):
-    """基于认证信息和用户代理生成会话ID"""
-    # 使用 API key 和 User-Agent 的组合作为会话标识
-    session_key = f"{auth_header}:{user_agent}"
-    return hashlib.md5(session_key.encode()).hexdigest()
+def get_session_id(auth_header, user_agent="", request_body=None):
+    """
+    改进的会话ID生成策略：
+    1. 如果请求包含 session_id 参数，优先使用
+    2. 否则仅基于 API_KEY 生成（移除 User-Agent 依赖，更适合外部工具）
+    """
+    # 检查请求体中是否有自定义 session_id
+    if request_body and isinstance(request_body, dict):
+        custom_session = request_body.get('session_id')
+        if custom_session:
+            return custom_session
+    
+    # 仅基于 API KEY 生成会话ID（不依赖 User-Agent）
+    # 这样使用同一个 API KEY 的所有请求都会共享会话历史
+    return hashlib.md5(auth_header.encode()).hexdigest()
 
-def generate_intelligent_response(user_message, model, conversation_history=None):
-    """生成智能响应，支持上下文"""
+def generate_intelligent_response(user_message, model, conversation_history=None, messages_context=None):
+    """
+    生成智能响应，支持两种上下文方式：
+    1. conversation_history: 从服务器缓存中获取的历史
+    2. messages_context: 从请求的 messages 数组中获取的完整对话历史
+    """
     msg_lower = user_message.lower()
     
+    # 合并两种上下文来源
+    combined_history = []
+    
+    # 先处理 messages 数组中的历史（OpenAI 标准方式）
+    if messages_context and len(messages_context) > 1:
+        for msg in messages_context[:-1]:  # 排除最后一条（当前消息）
+            if msg.get('role') == 'user':
+                combined_history.append({
+                    'user': msg.get('content', ''),
+                    'assistant': ''
+                })
+            elif msg.get('role') == 'assistant' and combined_history:
+                combined_history[-1]['assistant'] = msg.get('content', '')
+    
+    # 再添加缓存的历史
+    if conversation_history:
+        combined_history.extend(conversation_history)
+    
     # 如果有对话历史，先检查是否是后续问题
-    if conversation_history and len(conversation_history) > 0:
-        # 检查是否是指代性问题
-        if any(word in msg_lower for word in ["这个", "那个", "刚才", "上面", "之前", "it", "that", "this"]):
-            last_exchange = conversation_history[-1] if conversation_history else None
+    if combined_history and len(combined_history) > 0:
+        # 检查是否是指代性问题或询问之前的内容
+        if any(word in msg_lower for word in ["这个", "那个", "刚才", "上面", "之前", "记住", "什么", "it", "that", "this", "what"]):
+            last_exchange = combined_history[-1] if combined_history else None
             if last_exchange:
                 # 基于之前的对话生成响应
                 prev_user = last_exchange.get('user', '')
                 prev_response = last_exchange.get('assistant', '')
                 
+                # 检查是否询问之前记住的内容
+                if "记住" in msg_lower and ("什么" in msg_lower or "?" in user_message):
+                    # 查找之前用户提到的"记住"相关内容
+                    for hist in reversed(combined_history):
+                        user_msg = hist.get('user', '').lower()
+                        if "记住" in user_msg or "记得" in user_msg:
+                            # 提取要记住的内容
+                            import re
+                            # 尝试提取冒号后的内容
+                            if "：" in hist.get('user', ''):
+                                remember_content = hist.get('user', '').split('：')[1].strip()
+                                return f"您之前让我记住的是：{remember_content}"
+                            elif ":" in hist.get('user', ''):
+                                remember_content = hist.get('user', '').split(':')[1].strip()
+                                return f"您之前让我记住的是：{remember_content}"
+                            else:
+                                return f"您之前说过：{hist.get('user', '')}"
+                
+                # 检查是否询问名字
+                if ("叫什么" in msg_lower or "名字" in msg_lower) and "?" in user_message:
+                    for hist in reversed(combined_history):
+                        user_msg = hist.get('user', '')
+                        if "我叫" in user_msg or "我是" in user_msg or "名字" in user_msg:
+                            # 尝试提取名字
+                            import re
+                            name_match = re.search(r'我叫(\S+)', user_msg)
+                            if name_match:
+                                return f"您之前告诉我您叫{name_match.group(1)}"
+                            # 查找包含名字的模式
+                            if "：" in user_msg and "名字" in user_msg:
+                                name_part = user_msg.split('：')[1].split('，')[0].strip()
+                                return f"您之前告诉我您叫{name_part}"
+                
                 # 检查是否在引用之前的数学计算
-                if any(word in msg_lower for word in ["结果", "答案", "这个数", "那个数"]):
+                if any(word in msg_lower for word in ["结果", "答案", "这个数", "那个数", "乘", "加", "减", "除"]):
                     # 尝试从之前的响应中提取数字
                     import re
                     numbers = re.findall(r'\d+', prev_response)
                     if numbers and any(word in msg_lower for word in ["乘", "加", "减", "除", "*", "+", "-", "/"]):
                         # 构建新的数学表达式
-                        if "乘以" in user_message or "*" in user_message:
+                        if "乘" in user_message or "*" in user_message:
                             factor = re.findall(r'\d+', user_message)
                             if factor and numbers:
                                 new_calc = f"{numbers[-1]} * {factor[0]}"
                                 result = eval(new_calc, {"__builtins__": {}})
                                 return f"基于之前的结果 {numbers[-1]}，{new_calc} = {result}"
-                        elif "加上" in user_message or "+" in user_message:
+                        elif "加" in user_message or "+" in user_message:
                             addend = re.findall(r'\d+', user_message)
                             if addend and numbers:
                                 new_calc = f"{numbers[-1]} + {addend[0]}"
                                 result = eval(new_calc, {"__builtins__": {}})
                                 return f"基于之前的结果 {numbers[-1]}，{new_calc} = {result}"
-                
-                return f"关于您之前提到的内容，{user_message}。让我为您进一步说明..."
+                        elif "减" in user_message or "-" in user_message:
+                            subtrahend = re.findall(r'\d+', user_message)
+                            if subtrahend and numbers:
+                                new_calc = f"{numbers[-1]} - {subtrahend[0]}"
+                                result = eval(new_calc, {"__builtins__": {}})
+                                return f"基于之前的结果 {numbers[-1]}，{new_calc} = {result}"
+                        elif "除" in user_message or "/" in user_message:
+                            divisor = re.findall(r'\d+', user_message)
+                            if divisor and numbers and int(divisor[0]) != 0:
+                                new_calc = f"{numbers[-1]} / {divisor[0]}"
+                                result = eval(new_calc, {"__builtins__": {}})
+                                return f"基于之前的结果 {numbers[-1]}，{new_calc} = {result}"
     
     # 1. 先尝试数学计算
     math_result = process_math(user_message)
@@ -302,7 +377,7 @@ def get_html_content():
             
             <div class="info">
                 <p><strong>状态:</strong> <span class="status">运行中</span></p>
-                <p><strong>版本:</strong> Production v3.0 - 支持{len(MODELS)}个最新AI模型</p>
+                <p><strong>版本:</strong> Production v3.1 - 支持{len(MODELS)}个最新AI模型（包括Claude 4.5 Sonnet）</p>
                 <p><strong>API密钥:</strong> <code>{'已配置 (环境变量)' if API_KEY != 'sk-default-key-please-change' else '未配置 - 请设置环境变量'}</code></p>
                 <p><strong>基础URL:</strong> <code>https://api.autoschool.eu.org</code></p>
             </div>
@@ -396,9 +471,9 @@ class handler(BaseHTTPRequestHandler):
                 messages = body.get('messages', [])
                 stream = body.get('stream', False)
                 
-                # 获取会话ID
+                # 获取会话ID（改进版，支持自定义session_id）
                 user_agent = self.headers.get('User-Agent', '')
-                session_id = get_session_id(auth, user_agent)
+                session_id = get_session_id(auth, user_agent, body)
                 
                 # 清理过期会话
                 clean_old_sessions()
@@ -419,8 +494,13 @@ class handler(BaseHTTPRequestHandler):
                 # 获取对话历史
                 conversation_history = list(conversation_memory[session_id])
                 
-                # 生成智能响应（传入对话历史）
-                response_content = generate_intelligent_response(user_message, model, conversation_history)
+                # 生成智能响应（传入两种上下文：缓存历史和messages数组）
+                response_content = generate_intelligent_response(
+                    user_message,
+                    model,
+                    conversation_history,
+                    messages  # 传入完整的 messages 数组
+                )
                 
                 # 保存到对话历史
                 conversation_memory[session_id].append({
