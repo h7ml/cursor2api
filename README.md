@@ -2,19 +2,19 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/version-3.1-blue.svg" alt="Version">
-  <img src="https://img.shields.io/badge/models-24-green.svg" alt="Models">
+  <img src="https://img.shields.io/badge/models-26-green.svg" alt="Models">
   <img src="https://img.shields.io/badge/license-MIT-orange.svg" alt="License">
   <img src="https://img.shields.io/badge/status-production-success.svg" alt="Status">
 </p>
 
 <p align="center">
   <b>🚀 一个部署在 Vercel 上的高级 AI 模型 API 服务</b><br>
-  支持 24 个最新的 AI 模型，完全兼容 OpenAI API 格式
+  支持 26 个最新的 AI 模型，完全兼容 OpenAI API 格式
 </p>
 
 ## ✨ 特性
 
-- 🤖 **支持 24 个最新 AI 模型** - GPT-5、Claude 4.5 Sonnet、Gemini 2.5、DeepSeek、Grok 等
+- 🤖 **支持 26 个最新 AI 模型** - GPT-5、Claude 4.5 Sonnet、Gemini 2.5、DeepSeek、Grok 等
 - 🔄 **完全兼容 OpenAI API** - 无缝对接现有应用
 - 🌊 **流式/非流式响应** - 支持实时流式输出
 - 🔒 **安全认证** - 基于环境变量的 API 密钥管理
@@ -55,7 +55,7 @@ API_KEY=your-secure-api-key-here
 ## 📦 支持的模型
 
 <details>
-<summary>查看全部 24 个模型</summary>
+<summary>查看全部 26 个模型</summary>
 
 ### GPT 系列
 - `gpt-5` - 最先进的GPT模型
@@ -193,6 +193,18 @@ python test_all_models.py
 ```
 
 ## 🔧 本地开发
+
+### 快速启动（推荐）
+
+```bash
+# 最简单的方式
+python3 quick_start.py
+
+# 或使用功能完整版
+python3 start.py
+```
+
+### Vercel 开发模式
 
 1. **创建环境变量文件**
 ```bash

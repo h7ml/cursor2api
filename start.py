@@ -251,8 +251,7 @@ def run_tests():
 
 def main():
     """主函数"""
-    parser = 
-argparse.ArgumentParser(description='Cursor2API 本地启动脚本')
+    parser = argparse.ArgumentParser(description='Cursor2API 本地启动脚本')
     parser.add_argument('mode', nargs='?', default='dev',
                        choices=['dev', 'vercel', 'test', 'install'],
                        help='启动模式: dev(本地开发), vercel(Vercel开发), test(运行测试), install(安装依赖)')

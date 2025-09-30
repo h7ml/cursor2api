@@ -8,9 +8,9 @@ import requests
 import json
 import time
 
-# API 配置
-API_URL = "http://localhost:8000/v1/chat/completions"
-API_KEY = "sk-yoursk"
+# API 配置 - 从环境变量读取
+API_URL = os.getenv("API_URL", "http://127.0.0.1:8001") + "/v1/chat/completions"
+API_KEY = os.getenv("API_KEY", "your-secure-api-key-here")
 
 def test_conversation():
     """测试多轮对话"""

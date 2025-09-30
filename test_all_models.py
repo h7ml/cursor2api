@@ -9,8 +9,8 @@ import os
 import sys
 
 # API配置 - 从环境变量读取，或使用默认值
-API_URL = os.getenv("API_URL", "https://cursor2-api.vercel.app")
-API_KEY = os.getenv("API_KEY")
+API_URL = os.getenv("API_URL", "http://127.0.0.1:8001")
+API_KEY = os.getenv("API_KEY", "your-secure-api-key-here")
 
 # 检查 API 密钥
 if not API_KEY or API_KEY == "your-api-key-here":
